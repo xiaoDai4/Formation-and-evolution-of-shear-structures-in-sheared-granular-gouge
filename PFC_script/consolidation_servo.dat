@@ -1,0 +1,80 @@
+model restore 'heterogeneity_model_assign_property.sav'
+; model restore 'homogeneous_model.sav'
+
+model title 'Sheared Granular Gouge (consolidation)'
+program echo off
+clump free velocity range id 1
+
+define set_parameter
+; Set parameters
+    ; find the clump
+    save_name_consolidation_ = 'consolidation'
+    cp1_ = clump.find(1)
+    cp2_ = clump.find(2)
+    alpha_ = 0.1  ; relaxation factor
+    required_stress_ = 20e6
+    c_ratio_ = 0.005 ; convergence ratio
+end
+@set_parameter
+
+
+define get_ss  
+; get the stress state
+    normal_stress_ = ( clump.force.contact.y(cp1_) - clump.force.contact.y(cp2_) ) / 2 / gouge_width_
+
+end
+;@get_ss
+
+define get_gain
+; calculate the servo parameter 
+    count_  = 0;
+    avg_stiff_ = 0;
+    loop foreach local contact_ clump.contactmap(cp1_) 
+        avg_stiff_ = avg_stiff_ + contact.prop(contact_, "kn")
+        count_ = count_ + 1
+    end_loop
+    loop foreach contact_ clump.contactmap(cp2_) 
+        avg_stiff_ = avg_stiff_ + contact.prop(contact_, "kn")
+        count_ = count_ + 1
+    end_loop
+    avg_n_ = count_ / 2
+    avg_stiff_ = avg_stiff_ / count_
+    
+    G_ = alpha_ * gouge_width_ / (avg_stiff_ * avg_n_ * mech.timestep)
+end
+;@get_gain
+
+define serve
+; define the serve control when the program is running
+    whilestepping
+    get_ss ;compute the stress
+    v_clump_ = G_ * ( normal_stress_ - required_stress_ )
+    clump.vel.y(cp1_) = v_clump_
+    
+end
+
+define iterate
+    loop while 1 # 0
+    get_gain
+    
+    if math.abs((normal_stress_ - required_stress_)/required_stress_) < c_ratio_
+        exit
+    end_if
+    command
+        cycle 100
+    end_command
+        
+    end_loop
+
+end
+@iterate
+
+fish callback remove serve
+clump attribute force-applied 0 [-required_stress_ * gouge_width_] range id 1
+
+model solve ratio-average 1e-4
+model calm
+
+; save the sample
+
+model save [save_name_consolidation_] 

@@ -1,0 +1,73 @@
+model restore 'make_sample.sav'
+model title 'Sheared Granular Gouge (generate_grains)'
+program echo off
+
+
+define set_parameter
+    save_name_ = 'heterogeneity_model_generate_grains'
+    grain_number_ = 400
+    grain_file_ = 'grain_geometry'
+    grain_name_ = 'grain'
+    file_type_ = '.dxf'
+    r_ = teeth_radius_/5  ; the effective radius of generated grain
+    random_factor_ = 0.2  ; the fluctuation multiple
+    attempts_ = 2000  ; the times try to genrate grains
+    
+    
+    ball_group_ = 'bonded' ; the name of ball group
+    contact_group_ = 'inter_grain' ; the name of contact group
+    
+    
+    
+    
+end
+@set_parameter
+
+ball group 'unbonded'
+
+
+
+; import functions
+program call 'heterogeneity_functions.p2fis'
+
+define main_heterogeneity
+    ; generate grains
+    loop local i_(1, attempts_)
+        random_grain
+        initial_grain
+        random_position
+        move_geometry
+        check_position
+        
+        if check_result_ == TRUE
+            group_ball
+        end_if
+    end_loop
+    local count_all_ = 0  ; count all ball
+    local count_grain_ = 0 ; count the ball in grain
+    loop foreach local ball_ ball.list
+        count_all_ += 1
+        if ball.isgroup(ball_, ball_group_)
+            count_grain_ += 1
+        end_if
+    end_loop
+    
+    final_check
+    
+    io.out('The heterogeneity model is built.\n')
+    io.out('The total ball is ')
+    io.out(count_all_)
+    io.out('\n')
+    io.out('Quantity of balls are bonded:')
+    io.out(count_grain_)
+    io.out('\n')
+    io.out('The fraction is ')
+    io.out(float(count_grain_)/count_all_)
+    io.out('\n')
+end
+
+@main_heterogeneity
+
+
+model save [save_name_]
+

@@ -1,0 +1,20 @@
+; define the parameter to be record
+
+define initialize_history
+    displacement = 0 ; initialize the displacement
+end
+
+define recording
+    whilestepping
+    displacement += mech.timestep * vs_
+    gouge_thickness = clump.pos.y(cp1_) - clump.pos.y(cp2_)
+    shear_stress = (- clump.force.contact.x(cp1_) + clump.force.contact.x(cp2_) ) / 2 / gouge_width_
+    normal_stress = ( clump.force.contact.y(cp1_) - clump.force.contact.y(cp2_) ) / 2 / gouge_width_
+    friction = shear_stress / normal_stress
+    plate_displacement = clump.disp.x(cp1_)
+    plate_velocity = clump.vel.x(cp1_)
+    plate_displacement_bottom = clump.disp.x(cp2_)
+    plate_velocity_bottom = clump.vel.x(cp2_)
+    shear_strain = (plate_displacement - plate_displacement_bottom) / gouge_thickness
+    shear_strain_rate = (plate_velocity - plate_velocity_bottom) / gouge_thickness
+end

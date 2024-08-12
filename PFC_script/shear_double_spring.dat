@@ -1,0 +1,123 @@
+model restore 'consolidation.sav'
+model title 'Sheared Granular Gouge (shear with double spring)'
+program echo off
+; set the current work directory and import function
+program call 'output_particle_info.fis' suppress 
+
+; Reset ball displacement 
+ball attribute displacement multiply 0.0
+clump attribute displacement multiply 0.0
+
+define set_parameter
+; Set parameters
+    k_load_ =  30.8e9  ; load stiffness
+    k_load_2_ = 30.8e9 ; bottom stiffness
+    vs_ = 100e-3; shear velocity
+    
+    damp_ = 0.1 ; new damping ratio
+    
+    lp_ =  clump.pos.x(cp1_) ; the initial coordinate of the load point
+    cx_t_ = clump.pos.x(cp1_) ; the initial x coordinate of top plate
+    cx_b_ = clump.pos.x(cp2_) ; the initial x coordinate of bottom plate
+    ; io.out(c_t0_)
+    ; dt_ = 1e-9
+    dt_ = mech.timestep
+    
+    th_periodic_ =  domain_width_ / 2   ; the threshold for judge the periodic BC of load point
+    
+    save_name_ = 'solid_file\\sheared_' ; the path to save the solid file
+    particle_info_ = 'particle_info\\particle_info_'  ; 
+    record_frequency_ = int(40000) ; 
+    index_ = int(1500)        ; the totol index to record the sequence of the solid file 
+    
+    ; record information
+    array table_head_friction_state_(1) 
+    table_head_friction_state_(1) = 'Load pointer displacement, Friction, Top plate displacement, Bottom plate displacement, Top plate velocity, Bottom plate velocity'
+    array friction_state_(1)  ; temporary space to store the friction_state_
+    array table_particle_information_(1)
+    table_particle_information_(1) = 'ID, cx, cy, dx, dy, vx, vy, Cxx, Cxy, Cyy'
+    array particle_infomation_(1) ; temporary space to store the friction_state_
+    
+end 
+@set_parameter
+
+; free the bottom plate
+clump free velocity range id 2
+clump attribute force-applied 0 [required_stress_ * gouge_width_] range id 2
+model solve ratio-average 1e-4
+model calm
+
+; change to new damp
+ball attribute damp [damp_]
+clump attribute damp [damp_]
+
+; set time step
+model mechanical timestep fix [dt_]
+; model mechanical timestep auto
+
+
+
+; porgram to apply shear force
+
+define load_with_two_spring
+    ;;;;;
+    ; load the fault system with spring
+    ;;;;;
+    whilestepping
+    ; update the position of load point
+    lp_ += mech.timestep * vs_
+    
+    ; io.out(c_t_)
+    ; io.out(mech.timestep * vs_)
+    ; apply force to clump
+    clump.force.app.x(cp1_) =  (lp_ - clump.pos.x(cp1_)) * k_load_ * gouge_width_  ; top plate
+    clump.force.app.x(cp2_) =  (cx_b_ - clump.pos.x(cp2_)) * k_load_2_ * gouge_width_  ; top plate
+    
+    ; add a periodic BC to load pointer
+    if  math.abs(clump.pos.x(cp1_) - cx_t_) > th_periodic_
+        lp_ += (clump.pos.x(cp1_) - cx_t_)
+    end_if
+    cx_t_ = clump.pos.x(cp1_)
+end
+
+; initial the displacement of particle and clump
+
+
+; record the parameter
+; import functions and define the parameter to record 
+program call 'history.p2fis'
+history interval 1000
+@initialize_history
+fish history name 1 @displacement
+fish history name 2 @gouge_thickness
+fish history name 3 @shear_strain
+fish history name 4 @shear_stress
+fish history name 5 @normal_stress
+fish history name 6 @friction
+fish history name 7 @plate_displacement
+fish history name 8 @plate_velocity
+fish history name 9 @plate_displacement_bottom
+fish history name 10 @plate_velocity_bottom
+fish history name 11 @shear_strain_rate
+
+
+; solve and run
+; save model
+define solve_and_store
+    ; solve the model and save the data
+    
+    loop local i_ (0, index_)
+        
+        command
+            cycle [record_frequency_]
+            model save [save_name_ + string(i_)] 
+        end_command
+        
+        output_fiction_state
+        
+        output_particle_info(i_)
+        
+    end_loop
+    
+end
+@solve_and_store

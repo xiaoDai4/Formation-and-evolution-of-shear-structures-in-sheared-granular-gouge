@@ -1,0 +1,20 @@
+; fname: sheared_granular_gouge
+;
+;  
+;==============================================================================
+
+; make the sample
+program call 'make_sample' suppress 
+
+; build the heterogeneity model
+program call 'heterogeneity_model_generate_grains' suppress 
+program call 'heterogeneity_model_assign_properties' suppress 
+;program call 'homogeneous_model' suppress 
+
+; consolidation
+program call 'consolidation_servo' suppress 
+
+; shear
+program call 'shear' suppress
+; program call 'shear_constant_velocity' suppress
+; program call 'shear_double_spring' suppress

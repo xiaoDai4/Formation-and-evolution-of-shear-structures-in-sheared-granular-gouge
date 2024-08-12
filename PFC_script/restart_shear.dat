@@ -1,0 +1,48 @@
+model restore 'solid_file\\sheared_1.sav'
+; set the current work directory and import function
+program call 'output_particle_info.fis' suppress 
+
+define set_parameter
+; Set parameters
+    ; k_load_ =  30.8e9  ; load stiffness
+    
+    ; vs_ = 10e-3; shear velocity
+    
+    ; damp_ = 0.1 ; new damping ratio
+    
+    ; lp_ =  clump.pos.x(cp1_) ; the initial coordinate of the load point
+    ; cx_t_ = clump.pos.x(cp1_) ; the initial x coordinate of top plate
+    ; io.out(c_t0_)
+    ; dt_ = 1e-9
+    
+    ; th_periodic_ =  domain_width_ / 2   ; the threshold for judge the periodic BC of load point
+    
+    save_name_ = 'solid_file\\sheared_' ; the path to save the solid file
+    particle_info_ = 'particle_info\\particle_info_'  ; 
+    record_frequency_ = int(10000) ;
+    old_index_ = 1 ; 
+    restart_index_ = old_index_ + 1    ;this parameter do not need to change
+    index_ = restart_index_ + 2       ; the totol index to record the sequence of the solid file 
+    
+end 
+@set_parameter
+
+
+
+define restart_and_store
+    ; solve the model and save the data
+    
+    loop local i_ (restart_index_, index_)
+        command
+            cycle [record_frequency_]
+            model save [save_name_ + string(i_)] 
+        end_command
+        
+        output_fiction_state
+        
+        output_particle_info(i_)
+        
+    end_loop
+    
+end
+@restart_and_store

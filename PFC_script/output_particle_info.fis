@@ -1,0 +1,54 @@
+program directory input
+def output_fiction_state
+; output the friction state and plate motion
+; (1) check if the file exist
+    local i_ = file.open(particle_info_ + 'friction_state.txt', 0, 1)
+    if i_ # 0
+        i_ = file.open(particle_info_ + 'friction_state.txt', 1, 1)
+        file.write(table_head_friction_state_, 1)
+        file.close()
+    else 
+        file.close()
+    end_if
+    
+; (2) wirte the friction state and plate motion 
+    friction_state_(1) = string(displacement, 10, '0', 10, 'g') + ',' ...
+                        +string(friction, 10, '0', 10, 'g') + ',' ...
+                        +string(plate_displacement, 10, '0', 10, 'g') + ',' ...
+                        +string(plate_displacement_bottom, 10, '0', 10, 'g') + ',' ...
+                        +string(plate_velocity, 10, '0', 10, 'g') + ',' ...
+                        +string(plate_velocity_bottom, 10, '0', 10, 'g') 
+    i_ = file.open(particle_info_ + 'friction_state.txt', 2, 1)
+    file.write(friction_state_, 1)
+    file.close()
+
+end
+;@output_fiction_state
+
+; output the information of particle
+define output_particle_info(index_)
+    ; (1) create a new file and write the particle information respectively
+    local i_ = file.open(particle_info_ + string(index_) +'.txt', 1, 1)
+    
+    ; (2) write table head ID cx cy dx dy vx vy cxx cxy cyy
+    file.write(table_particle_information_, 1)
+    
+    ; (3) the information of balls
+    loop foreach local bp_ ball.list
+         particle_infomation_(1) = string(ball.id(bp_)) + ',' ...
+                                        +string(ball.pos.x(bp_), 10, '0', 10, 'g') + ',' ...
+                                        +string(ball.pos.y(bp_), 10, '0', 10, 'g') + ',' ...
+                                        +string(ball.disp.x(bp_), 10, '0', 10, 'g') + ',' ...
+                                        +string(ball.disp.y(bp_), 10, '0', 10, 'g') + ',' ...
+                                        +string(ball.vel.x(bp_), 10, '0', 10, 'g') + ',' ...
+                                        +string(ball.vel.y(bp_), 10, '0', 10, 'g') + ',' ...
+                                        +string(ball.stress.xx(bp_), 10, '0', 10, 'g') + ',' ...
+                                        +string(ball.stress.xy(bp_), 10, '0', 10, 'g') + ',' ...
+                                        +string(ball.stress.yy(bp_), 10, '0', 10, 'g')
+        file.write(particle_infomation_, 1)
+        
+    end_loop
+                                        
+    file.close()
+end
+;@output_particle_info(2)

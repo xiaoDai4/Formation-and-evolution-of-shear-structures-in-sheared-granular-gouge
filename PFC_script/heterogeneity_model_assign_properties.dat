@@ -1,0 +1,76 @@
+model restore 'heterogeneity_model_generate_grains.sav'
+model title 'Sheared Granular Gouge (heterogeneity assign property)'
+program echo off
+
+
+define set_parameter
+    save_name_ = 'heterogeneity_model_assign_property'
+    
+    
+    ; property
+    emod_ = 27.2e9
+    krat_ = 1.0
+    rho_ = 2650.0
+    rho_plate_ = 2650.0
+    pb_ten_ = 62.5e6
+    pb_coh_ = 67.5e6
+    pb_fa_ =  7.01
+    fric_ = 0.65
+    fric_plate_ = 0.65
+    dp_nratio_ = 0.5
+    damp_ = 0.7
+    bond_gap_ = 0.5e-6
+    
+    
+end
+@set_parameter
+
+
+
+; default property
+cmat default model linear method deform emod [emod_] krat [krat_]
+cmat default property fric [fric_]
+cmat default property dp_nratio [dp_nratio_]
+; set linear stiffness
+contact method deform emod [emod_] krat [krat_]
+; set some damping at the contacts
+contact property dp_nratio [dp_nratio_]
+; set ball-ball friction to non-zero value
+contact property fric [fric_] range contact type 'ball-ball' 
+; set the ball density and damp
+ball attribute density [rho_] damp [damp_]
+clump attribute density [rho_plate_] damp [damp_]
+
+
+
+
+; property ball-pebble
+; default property
+cmat default property fric [fric_plate_] type 'ball-pebble' 
+; set linear stiffness
+contact method deform emod [emod_] krat [krat_] range contact type 'ball-pebble' 
+; set some damping at the contacts
+contact property dp_nratio [dp_nratio_] range contact type 'ball-pebble' 
+; set ball-ball friction to zero value
+contact property fric [fric_plate_] range contact type 'ball-pebble' 
+
+; property inside grain
+
+; assign the property
+contact model linearpbond range group 'inter_grain'
+contact method bond gap [bond_gap_] range group 'inter_grain'
+
+; set linear stiffness
+contact method deform emod [emod_] krat [krat_] range group 'inter_grain'
+
+; set stiffness of bond material
+contact method pb_deform emod [emod_] krat [krat_] range group 'inter_grain'
+
+; set bond strengths
+contact property pb_ten [pb_ten_] pb_coh [pb_coh_] pb_fa [pb_fa_] range group 'inter_grain'
+
+; set some damping at the contacts
+contact property dp_nratio [dp_nratio_] range group 'inter_grain'
+
+model save [save_name_]
+

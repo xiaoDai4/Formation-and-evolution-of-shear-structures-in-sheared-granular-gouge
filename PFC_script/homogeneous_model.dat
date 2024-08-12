@@ -1,0 +1,41 @@
+model restore 'make_sample.sav'
+model title 'Sheared Granular Gouge (homogeneous)'
+program echo off
+
+
+define set_parameter
+    save_name_ = 'homogeneous_model'
+    ; property
+    emod_ = 1.0e9
+    krat_ = 1.0
+    rho_ = 2500.0
+    fric_ = 0.577
+    dp_nratio_ = 0.5
+    damp_ = 0.7
+    rho_plate_ = 2500
+    
+    
+end
+@set_parameter
+
+
+
+; default property
+cmat default model linear method deform emod [emod_] krat [krat_]
+cmat default property fric [fric_]
+cmat default property dp_nratio [dp_nratio_]
+; set linear stiffness
+contact method deform emod [emod_] krat [krat_]
+; set some damping at the contacts
+contact property dp_nratio [dp_nratio_]
+; set ball-ball friction to non-zero value
+contact property fric [fric_] range contact type 'ball-ball' 
+; set the ball density and damp
+ball attribute density [rho_] damp [damp_]
+clump attribute density [rho_plate_] damp [damp_]
+; property ball-pebble
+; default property
+cmat default property fric 0 type 'ball-pebble' 
+
+
+model save [save_name_]

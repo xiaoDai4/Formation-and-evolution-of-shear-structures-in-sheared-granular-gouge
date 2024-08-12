@@ -1,0 +1,222 @@
+define random_grain
+    ; return -- random_grain_path_
+
+    ; calculate the number of digits for the number of grains.
+    local i_digit_ = 0 ; record the number of digits.
+    local t_ = grain_number_
+    loop while true
+        t_ = t_ / 10
+        i_digit_ = i_digit_ + 1
+        if t_ == 0
+            exit loop
+        end_if
+    end_loop
+    ; i1 = io.out(i_digit_) 
+    
+    ; generate random grain number
+    local i_grain_
+    loop while true
+        t_ = 1
+        i_grain_  = 0
+        loop i_(1,i_digit_)  ; generate the random number
+            i_grain_ = i_grain_ + int(10*math.random.uniform) * t_
+            t_ = t_ * 10
+        end_loop
+        if i_grain_ <= grain_number_ & i_grain_ # 0 ; determine if the random i_grain_ is appropriate
+            ; io.out(i_grain_)
+            exit loop
+        end_if
+    end_loop
+
+    ; the path of random grain
+    random_grain_path_ = grain_file_ + '\\' + grain_name_ + string(i_grain_) + file_type_
+    ; io.out(random_grain_path_)
+
+end
+; @random_grain
+
+
+define initial_grain
+    ; Calculate the effective diameter, centroid. Then, initial the grain.
+
+    ; import the grain
+    command
+        geometry delete
+        geometry set 'grain'
+        geometry import [random_grain_path_] set 'grain'
+    end_command
+    
+    ; calculate the centroid 
+    local x_c_ = 0 ; centroid x coordinate
+    local y_c_ = 0 ; centroid y coordinate
+    local n_node_ = 0 ; record the number of node
+    local p_geo_ = geom.set.find('grain') ; the pointer of the geometry
+    loop foreach local p_node_ geom.node.list(p_geo_)
+        x_c_ = x_c_ + geom.node.pos.x(p_node_)
+        y_c_ = y_c_ + geom.node.pos.y(p_node_)
+        n_node_ = n_node_ + 1
+    end_loop
+    x_c_ = x_c_ / n_node_
+    y_c_ = y_c_ / n_node_
+    ; io.out(x_c_)
+    ; io.out(y_c_)
+    ; io.out(n_node_)
+    
+    ; initial the grain
+    command 
+        geometry translate [-x_c_],[-y_c_]
+    endcommand
+    
+    ; calculate the area (by shoelace theorem)
+    local x_node_ = array.create(n_node_) ; store the x coordinate of nodes
+    local y_node_ = array.create(n_node_) ; store the y coordinate of nodes
+    n_node_ = 0
+    loop foreach p_node_ geom.node.list(p_geo_) 
+       n_node_ = n_node_ + 1
+       x_node_(n_node_) = geom.node.pos.x(p_node_)
+       y_node_(n_node_) = geom.node.pos.y(p_node_)
+    end_loop
+    ;n_node_ = 0;
+    ;loop foreach p_node_ geom.node.list(p_geo_)
+    ;   n_node_ = n_node_ + 1
+    ;   io.out(x_node_(n_node_))
+    ;   io.out(y_node_(n_node_))
+    ;end_loop
+    local S_ = float(0) ; the area of the grain
+    loop local i_ (1,n_node_ - 1) ; shoelace theorem
+        ; io.out(i_)
+        S_ = S_ + x_node_(i_) * y_node_(i_ + 1)  - x_node_(i_ + 1) * y_node_(i_)
+    end_loop
+    S_ += x_node_(n_node_) * y_node_(1)  - x_node_(1) * y_node_(n_node_)
+    S_ =  math.abs(0.5 * S_) 
+    
+    
+    ; effective diameter
+    r_grain_ = math.sqrt(S_ / math.pi) 
+    ; io.out(r_grain_)
+end
+; @random_grain
+; @initial_grain
+
+define random_position
+; generate random angle and random position
+
+    ; random angle
+    random_angle_ = 360 * math.random.uniform
+    ; io.out(random_angle_)
+    ; random position
+    random_x_ = 4e-3 * math.random.uniform
+    random_y_ = [teeth_radius_ * 2 + gouge_height_] * math.random.uniform + (domain_height_ - gouge_height_) / 2 - teeth_radius_
+    ; io.out(random_x_)
+    ; io.out(random_y_)
+end
+;@random_position
+
+define move_geometry
+; move geometry to a random position
+
+    ; scale, translate and rotate geometry
+    local scale_factor_ = r_ / r_grain_ * (1 + 2 * random_factor_ * (math.random.uniform - 0.5))
+    ; io.out(1 + random_factor_ * (math.random.uniform - 0.5))
+    local p_geo_ = geom.set.find('grain') ; the pointer of the geometry
+    loop foreach local node_ geom.node.list(p_geo_) 
+        geom.node.pos.x(node_) = geom.node.pos.x(node_) * scale_factor_
+        geom.node.pos.y(node_) = geom.node.pos.y(node_) * scale_factor_
+    end_loop
+    
+    command
+        geometry rotate angle [random_angle_] origin (0,0)
+        geometry translate [random_x_],[random_y_]
+    endcommand
+
+end
+;@random_grain
+;@initial_grain
+;@random_position
+;@move_geometry
+
+define check_position
+; check if the position is appropriate
+    check_result_ = TRUE  ; record the check result
+    local p_geo_ = geom.set.find('grain') ; the pointer of the geometry
+    loop foreach local pebble_ clump.pebble.list ; check if the coordinate is appropriate
+        loop foreach local node_ geom.node.list(p_geo_) 
+            local t_ = math.sqrt( (clump.pebble.pos.x(pebble_) - geom.node.pos.x(node_) ) * (clump.pebble.pos.x(pebble_) - geom.node.pos.x(node_)) + ...
+            (clump.pebble.pos.y(pebble_) - geom.node.pos.y(node_) ) * (clump.pebble.pos.y(pebble_) - geom.node.pos.y(node_)) )
+            ;io.out(t_) ; t_ record the distance to pebble
+            if t_ < teeth_radius_
+                check_result_ = FALSE
+            else if geom.node.pos.x(node_) < 0
+                check_result_ = FALSE
+            else if geom.node.pos.x(node_) > domain_width_
+                check_result_ = FALSE
+            else if geom.node.pos.y(node_) < (domain_height_ - gouge_height_) / 2 - teeth_radius_
+                check_result_ = FALSE
+            else if geom.node.pos.y(node_) > (domain_height_ - gouge_height_) / 2 + gouge_height_ + teeth_radius_
+                check_result_ = FALSE
+            end_if
+        end_loop
+    end_loop
+    ; check overlap of the grain
+    command
+        model range create 'in_grain' geometry-space 'grain' inside
+        ; ball group 'test'
+    endcommand
+        local r_ = range.find('in_grain')
+        loop foreach local ball_ ball.list
+            ; io.out(range.isin(r_, ball_))
+            if range.isin(r_, ball_)
+                ; io.out(ball.isgroup(ball_, 'test'))
+                if ball.isgroup(ball_, ball_group_)
+                    check_result_ = FALSE
+                end_if
+            end_if
+        end_loop
+    command
+        model range delete 'in_grain'
+    endcommand
+    ; io.out(check_result_)
+end
+;@random_grain
+;@initial_grain
+;@random_position
+;@move_geometry
+;@check_position
+
+define group_ball
+; group the balls and assign the contact property
+    ; group the balls and the contact
+    command
+        ball group [ball_group_] range geometry-space 'grain' inside
+        contact group [contact_group_] range geometry-space 'grain' inside
+    
+
+    endcommand
+end
+;@random_grain
+;@initial_grain
+;@random_position
+;@move_geometry
+;@check_position
+;@group_ball
+
+define final_check
+; do a final check, check if the contact bonded inappropriate balls
+    loop foreach local cp_ contact.list('ball-ball') 
+        ; parameter to indentify the type of contact
+        t_ = 0
+        
+        bp1_ = contact.end1(cp_)
+        bp2_ = contact.end2(cp_)
+        if ball.isgroup(bp1_, 'unbonded')
+            t_ += 1
+        end_if
+        if ball.isgroup(bp2_, 'unbonded')
+            t_ += 1
+        end_if
+        if t_ # 0
+            contact.group(cp_) = 'exter_grain'
+        end_if
+    end_loop
+end
+; @final_check
